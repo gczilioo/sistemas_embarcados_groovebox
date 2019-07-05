@@ -587,10 +587,10 @@ __interrupt void TIMER1_A0_ISR(void)
 			freq_312_5 = 0;
 			freq_156_25 = 1;
 		}
-		i++;
+		i++;			// adiciona 1 ao contador da posicao da sequencia
 		
-		if(i>6)
-			i=0;	
+		if(i>6)			// se a variavel de controle de posicao do vetor de sequencia pre-gravada ou configurada chegou ao limite
+			i=0;		// zera o contador da posicao
 	}
 }
 
