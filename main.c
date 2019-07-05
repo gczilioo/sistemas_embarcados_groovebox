@@ -24,29 +24,29 @@
 #define         BOTAO_2_1           !(P2IN&BIT1)    // definicao para verificar se o botao 2.1 esta pressionado
 #define         BOTAO_1_1           !(P1IN&BIT1)    // definicao para verificar se o botao 2.1 esta pressionado
 
-#define         LIMITE_TEMPO_SAMPLE     19
+#define         LIMITE_TEMPO_SAMPLE     19			// timer estoura 19 vezes para dar aproximadamente 0,5 s
 
 
-unsigned char dado_r;
-int aux = 0;
+unsigned char dado_r;					// variavel que recebe dado via UART
 
-unsigned char som1[6] = {1,2,3,4,5,6};
+unsigned char som1[6] = {1,2,3,4,5,6};	// sequencia de son predefinidos
 unsigned char som2[6] = {1,3,5,2,4,6};
 unsigned char som3[6] = {1,2,3,3,2,1};
 unsigned char som4[6] = {1,6,1,6,1,6};
-unsigned char som_custom [6];
-unsigned char timer_sample = 0;
-unsigned char i = 0;
-unsigned char ready = 0;
+unsigned char som_custom [6];			// variavel reservada para gravar sequencia programada
+unsigned char timer_sample = 0;			// variavel de controle de estouros do timers
+int aux = 0;							// variavel para controlar a posicao do vetor de armazenamento da sequencia programada
+unsigned char i = 0;					// variavel para controlar a posicao do vetor de que esta sendo tocado
+unsigned char ready = 0;				// variavel que determina qual dos vetores somX sera tocado na interrupcao
 
-unsigned char ctrl = 0;
-unsigned char ctrl_2_5 = 0;
-unsigned char ctrl_625 = 0;
+unsigned char ctrl = 0;					// variavel que controla se a interrupcao entra em tocar ou configurar
+unsigned char ctrl_2_5 = 0;				// variaveis a seguir contam a quantidade de vezes necessarias
+unsigned char ctrl_625 = 0;				// que a interrupcao deve estourar para tocar a determinada frequencia
 unsigned char ctrl_1_25 = 0;
 unsigned char ctrl_312 = 0;
 unsigned char ctrl_156 = 0;
 
-unsigned char freq_5k = 0;
+unsigned char freq_5k = 0;				// variaveis a seguir controlam se eh para tocar determinada frequencia
 unsigned char freq_2_5k = 0;
 unsigned char freq_1_25k = 0;
 unsigned char freq_625 = 0;
@@ -62,10 +62,11 @@ int main(void)
   WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
 
   iniciar_leds();                           // Inicia os leds
-   acende_led(LED1);   clock_setup_full(DCO,DCO,DCO);
+   acende_led(LED1);   
+   clock_setup_full(DCO,DCO,DCO);			// configura clock do microcontrolador
    apaga_led(LED1);
 
-   uart_init(VELOCIDADE);
+   uart_init(VELOCIDADE);					// funcao que inicia a UART
 
 // config pino de saida
     P2SEL &= (~BIT5); // Set P1.0 SEL for GPIO
@@ -80,7 +81,6 @@ int main(void)
 
     TA1CTL = TASSEL__SMCLK + MC__CONTINUOUS + TACLR + ID__8;         // SMCLK, upmode, clear TAR
 
-
 	__bis_SR_register(GIE);       // Enter LPM0, enable interrupts
 	while(1);
 
@@ -94,20 +94,20 @@ __interrupt void TIMER0_A0_ISR(void)
 {
 	TA0CCTL0 &= 0xFFFE;     		// limpa a flag da interrupcao
 
-	if(freq_5k == 1)
-    {
-		P2OUT ^= BIT5;
+	if(freq_5k == 1)						// verifica se a interrupcao necessita tocar determinada frequencia
+    {	
+		P2OUT ^= BIT5;						// se sim altera o pino de saida
 	}
-	if((freq_2_5k == 1) && (ctrl_2_5 < 2))
-    {
-		ctrl_2_5++;
-		if((freq_2_5k == 1) && (ctrl_2_5 == 2))
+	if((freq_2_5k == 1) && (ctrl_2_5 < 2))	// os ifs a seguir alem de verificarem se eh para tocar
+    {										// e se o contador de estouros para esta frequencia esta nos limites 
+		ctrl_2_5++;							// se eh para tocar adiciona 1 ao contador 
+		if((freq_2_5k == 1) && (ctrl_2_5 == 2))		// verifica se eh para tocar e o contador chegou ao seu valor
 		{
-			ctrl_2_5 = 0;
-			P2OUT ^= BIT5;
+			ctrl_2_5 = 0;							// zera contador de interrupcao
+			P2OUT ^= BIT5;							// alterna o pina de saida
 		}
 	}
-	if((freq_1_25k==1) && (ctrl_1_25 < 4))
+	if((freq_1_25k==1) && (ctrl_1_25 < 4))		
 	{
 		ctrl_1_25++;
 		if((freq_1_25k==1) && (ctrl_1_25 == 4))
@@ -248,20 +248,20 @@ __interrupt void USCI_A0_ISR(void)					//	funcao destinada para interrupcao da U
 					freq_156_25 = 0;				// seta pino para 0 V
 					P2OUT &= ~BIT5; 				// evitando dissipacao termica no transistor que aciona o speaker	
 				}
-				if(dado_r == 'p')					// se nao, caso "P"
+				if(dado_r == 'p')					// se nao, caso "P" os proximos caracteres serao para configurar
 				{
-					ctrl = 1;
+					ctrl = 1;						// altera variavel de controle para que a condicao se ja de programacao
 				}
 			}
-			else if(ctrl == 1)
+			else if(ctrl == 1)	// condicao para programar uma sequencia
 			{
-				som_custom[aux] = dado_r - 48;
-				aux++;
+				som_custom[aux] = dado_r - 48;		// recebe valor de 1 a 6 e subtrai 48 para corrigir da ASCII
+				aux++;								// adiciona um ao contador de posicao do vetor de seuqencia gravada
 				
-				if (aux>5)
-				{
-					aux = 0;
-					ctrl = 0;
+				if (aux>5)							// verifica se o valor da posicao alcancou o seu limite
+				{	
+					aux = 0;						// se sim zera o contador
+					ctrl = 0;						// altera a variavel de controle da interrupcao para receber os caracteres de controle
 				}
 			}
 			
@@ -276,14 +276,14 @@ __interrupt void TIMER1_A0_ISR(void)
 {
 	TA1CCTL0 &= 0xFFFE;     		// limpa a flag da interrupcao
 
-	timer_sample++;
+	timer_sample++;					// quando estoura a interrupcao conta 
 
-	if((timer_sample == LIMITE_TEMPO_SAMPLE) && (ready == 0))
-	{
-		timer_sample = 0;
-		if(som1[i] == 1)
+	if((timer_sample >= LIMITE_TEMPO_SAMPLE) && (ready == 0))	// verifica se a interrupcao estourou as vezes necessaria para 0,5 s
+	{															// e verifica tambem qual vetor esta setado para tocar, os pre-gravados ou o configurado
+		timer_sample = 0;										// se sim zera contador do timer
+		if(som1[i] == 1)										// verifica posicao do vetor e qual frequencia eh para ativar 
 		{
-			freq_5k = 1;
+			freq_5k = 1;										// altera variaveis de controle para tocar a sequencia pre-gravada
 			freq_2_5k = 0;
 			freq_1_25k = 0;
 			freq_625 = 0;
@@ -341,7 +341,7 @@ __interrupt void TIMER1_A0_ISR(void)
 			i=0;
 		
 	}
-	if((timer_sample == LIMITE_TEMPO_SAMPLE) && (ready == 1))
+	if((timer_sample >= LIMITE_TEMPO_SAMPLE) && (ready == 1))
 	{
 		timer_sample = 0;
 		if(som2[i] == 1)
@@ -404,7 +404,7 @@ __interrupt void TIMER1_A0_ISR(void)
 			i=0;
 		
 	}
-	if((timer_sample == LIMITE_TEMPO_SAMPLE) && (ready == 2))
+	if((timer_sample >= LIMITE_TEMPO_SAMPLE) && (ready == 2))
 	{
 		timer_sample = 0;
 		if(som3[i] == 1)
@@ -467,7 +467,7 @@ __interrupt void TIMER1_A0_ISR(void)
 			i=0;
 		
 	}
-	if((timer_sample == LIMITE_TEMPO_SAMPLE) && (ready == 3))
+	if((timer_sample >= LIMITE_TEMPO_SAMPLE) && (ready == 3))
 	{
 		timer_sample = 0;
 		if(som4[i] == 1)
@@ -530,7 +530,7 @@ __interrupt void TIMER1_A0_ISR(void)
 			i=0;
 		
 	}
-	if((timer_sample == LIMITE_TEMPO_SAMPLE) && (ready == 4))
+	if((timer_sample >= LIMITE_TEMPO_SAMPLE) && (ready == 4))
 	{
 		timer_sample = 0;
 		if(som_custom[i] == 1)
